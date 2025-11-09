@@ -17,8 +17,8 @@
     "react",
     "javascript"
   ],
-  "files": [
-    "dist",
+"files": [
+    "src/",
     "README.md",
     "LICENSE"
   ],
