@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAM Image Gallery Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+        }
+
+        .upload-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .upload-box {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-box:hover {
+            border-color: #764ba2;
+            background: #f8f9ff;
+        }
+
+        .upload-box.dragging {
+            border-color: #764ba2;
+            background: #f0f2ff;
+            transform: scale(1.02);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin-top: 20px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .image-card {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .image-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .image-container {
+            position: relative;
+            padding-top: 100%;
+            background: #f5f5f5;
+            overflow: hidden;
+        }
+
+        .image-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .image-card:hover .image-container img {
+            transform: scale(1.1);
+        }
+
+        .image-info {
+            padding: 15px;
+        }
+
+        .image-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .image-size {
+            color: #999;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 18px;
+        }
+
+        .error {
+            background: #fff3f3;
+            color: #d63031;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ff7675;
+        }
+
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 24px;
+            line-height: 1;
+        }
+
+        .stats {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 30px;
+        }
+
+        .stat {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🖼️ DAM Image Gallery</h1>
+            <p class="subtitle">Upload and manage your images with real-time transformations</p>
+        </header>
+
+        <div class="upload-section">
+            <div class="upload-box" id="uploadBox">
+                <h3>📁 Drop images here or click to upload</h3>
+                <p style="color: #999; margin-top: 10px;">Supports JPG, PNG, GIF, WebP</p>
+                <input type="file" id="fileInput" multiple accept="image/*">
+            </div>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat">
+                <div class="stat-value" id="totalImages">0</div>
+                <div class="stat-label">Total Images</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="totalSize">0 MB</div>
+                <div class="stat-label">Total Size</div>
+            </div>
+        </div>
+
+        <div id="errorContainer"></div>
+        <div class="loading" id="loading">Loading images...</div>
+        <div class="gallery" id="gallery"></div>
+    </div>
+
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" onclick="closeLightbox()">×</button>
+        <img id="lightboxImage" src="" alt="">
+    </div>
+
+    <!-- Include the DAM SDK -->
+    <script src="../src/index.js" type="module"></script>
+    
+    <script type="module">
+        import { DAMClient } from '../src/index.js';
+
+        // Initialize DAM Client
+        const client = new DAMClient({
+            apiUrl: 'http://localhost:55055',
+            keyId: 'your-key-id-here',
+            keySecret: 'your-key-secret-here'
+        });
+
+        // Elements
+        const uploadBox = document.getElementById('uploadBox');
+        const fileInput = document.getElementById('fileInput');
+        const gallery = document.getElementById('gallery');
+        const loading = document.getElementById('loading');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const errorContainer = document.getElementById('errorContainer');
+        const stats = document.getElementById('stats');
+
+        // Upload functionality
+        uploadBox.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileUpload);
+
+        // Drag and drop
+        uploadBox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadBox.classList.add('dragging');
+        });
+
+        uploadBox.addEventListener('dragleave', () => {
+            uploadBox.classList.remove('dragging');
+        });
+
+        uploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBox.classList.remove('dragging');
+            const files = Array.from(e.dataTransfer.files);
+            uploadFiles(files);
+        });
+
+        async function handleFileUpload(e) {
+            const files = Array.from(e.target.files);
+            await uploadFiles(files);
+            fileInput.value = '';
+        }
+
+        async function uploadFiles(files) {
+            if (files.length === 0) return;
+
+            progressBar.classList.add('active');
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                try {
+                    await client.upload(file, {
+                        onProgress: (percent) => {
+                            const totalProgress = ((i / files.length) + (percent / 100 / files.length)) * 100;
+                            progressFill.style.width = totalProgress + '%';
+                        }
+                    });
+                } catch (error) {
+                    showError(`Failed to upload ${file.name}: ${error.message}`);
+                }
+            }
+
+            progressBar.classList.remove('active');
+            progressFill.style.width = '0%';
+            loadGallery();
+        }
+
+        async function loadGallery() {
+            loading.style.display = 'block';
+            gallery.innerHTML = '';
+            errorContainer.innerHTML = '';
+
+            try {
+                const { files, pagination } = await client.listFiles({
+                    mimeType: 'image/*',
+                    limit: 100,
+                    sort: 'created_at',
+                    order: 'desc'
+                });
+
+                loading.style.display = 'none';
+
+                if (files.length === 0) {
+                    gallery.innerHTML = '<p style="color: white; text-align: center; width: 100%;">No images yet. Upload some to get started!</p>';
+                    return;
+                }
+
+                // Update stats
+                const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+                document.getElementById('totalImages').textContent = files.length;
+                document.getElementById('totalSize').textContent = formatBytes(totalSize);
+                stats.style.display = 'flex';
+
+                files.forEach(file => {
+                    const card = createImageCard(file);
+                    gallery.appendChild(card);
+                });
+            } catch (error) {
+                loading.style.display = 'none';
+                showError('Failed to load images: ' + error.message);
+            }
+        }
+
+        function createImageCard(file) {
+            const card = document.createElement('div');
+            card.className = 'image-card';
+
+            const thumbnailUrl = client.getTransformUrl(file.id, {
+                width: 300,
+                height: 300,
+                fit: 'cover',
+                format: 'webp',
+                quality: 80
+            });
+
+            const fullUrl = client.getTransformUrl(file.id, {
+                width: 1920,
+                format: 'webp',
+                quality: 90
+            });
+
+            card.innerHTML = `
+                <div class="image-container">
+                    <img src="${thumbnailUrl}" alt="${file.original_name}" loading="lazy">
+                </div>
+                <div class="image-info">
+                    <div class="image-name" title="${file.original_name}">${file.original_name}</div>
+                    <div class="image-size">${file.size_formatted}</div>
+                </div>
+            `;
+
+            card.addEventListener('click', () => openLightbox(fullUrl));
+
+            return card;
+        }
+
+        function openLightbox(imageUrl) {
+            document.getElementById('lightboxImage').src = imageUrl;
+            document.getElementById('lightbox').classList.add('active');
+        }
+
+        window.closeLightbox = function() {
+            document.getElementById('lightbox').classList.remove('active');
+        };
+
+        document.getElementById('lightbox').addEventListener('click', (e) => {
+            if (e.target.id === 'lightbox') {
+                closeLightbox();
+            }
+        });
+
+        function showError(message) {
+            const error = document.createElement('div');
+            error.className = 'error';
+            error.textContent = message;
+            errorContainer.appendChild(error);
+
+            setTimeout(() => error.remove(), 5000);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Load gallery on page load
+        loadGallery();
+    </script>
+</body>
+</html>
